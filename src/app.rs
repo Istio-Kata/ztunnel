@@ -27,7 +27,7 @@ use tracing::{warn, Instrument};
 
 use crate::identity::SecretManager;
 use crate::state::ProxyStateManager;
-use crate::{admin, config, identity, metrics, proxy, readiness, signal};
+use crate::{admin, config, identity, kata, metrics, proxy, readiness, signal};
 use crate::{dns, xds};
 
 pub async fn build_with_cert(
@@ -120,6 +120,10 @@ pub async fn build_with_cert(
     let admin_address = admin_server.address();
     // Run the admin server in the current tokio worker pool.
     admin_server.spawn();
+
+    // Create and start the kata uds server.
+    let kata_uds_server = kata::UDSServer::new().await?;
+    kata_uds_server.spawn().await;
 
     // Run the XDS state manager in the current tokio worker pool.
     tokio::spawn(state_mgr.run());

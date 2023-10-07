@@ -20,6 +20,7 @@ pub mod config;
 pub mod dns;
 pub mod hyper_util;
 pub mod identity;
+pub mod kata;
 pub mod metrics;
 pub mod proxy;
 pub mod rbac;
