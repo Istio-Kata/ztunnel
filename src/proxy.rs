@@ -212,14 +212,20 @@ pub async fn copy_hbone(
 
     let (mut sent, mut received): (u64, u64) = (0, 0);
 
+    // ztunnel to pod
+    // upgrade.read() -> stream.write()
     let client_to_server = async {
         let mut ri = tokio::io::BufReader::with_capacity(HBONE_BUFFER_SIZE, &mut ri);
+        // 阻塞直到 EOF
         let res = tokio::io::copy_buf(&mut ri, &mut wo).await;
         trace!(?res, "hbone -> tcp");
         received = res?;
         wo.shutdown().await
     };
 
+    // pod to ztunnel??
+    // TODO: inbound 不应该是入口流量吗？Inbound 为什么会有回来的流量？
+    // stream.read() -> upgrade.write()
     let server_to_client = async {
         let mut ro = tokio::io::BufReader::with_capacity(HBONE_BUFFER_SIZE, &mut ro);
         let res = tokio::io::copy_buf(&mut ro, &mut wi).await;
@@ -228,6 +234,7 @@ pub async fn copy_hbone(
         wi.shutdown().await
     };
 
+    // 等待 client_to_server 和 server_to_client 都结束
     tokio::try_join!(client_to_server, server_to_client)?;
 
     trace!(sent, recv = received, "copy hbone complete");
@@ -354,19 +361,26 @@ pub fn get_original_src_from_stream(stream: &TcpStream) -> Option<IpAddr> {
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// 这个方法最终返回的是一个 tcp stream，似乎是单向的？即 src -> dest？
 pub async fn freebind_connect(local: Option<IpAddr>, addr: SocketAddr) -> io::Result<TcpStream> {
     async fn connect(local: Option<IpAddr>, addr: SocketAddr) -> io::Result<TcpStream> {
+        // local 就是 src，这个值是可选的
         match local {
+            // src 为空，则直连
             None => {
                 trace!(dest=%addr, "no local address, connect directly");
                 Ok(TcpStream::connect(addr).await?)
             }
             // TODO: Need figure out how to handle case of loadbalancing to itself.
-            //       We use ztunnel addr instead, otherwise app side will be confused.
+            //       We use ztunnel addr instead, otherwise app side will
+            //       be confused.
+            // src == dest，说明是 pod 发给自己的，直连
             Some(src) if src == socket::to_canonical(addr).ip() => {
                 trace!(%src, dest=%addr, "dest and source are the same, connect directly");
                 Ok(TcpStream::connect(addr).await?)
             }
+            // src != dest，通过 freebind 绑定地址是 src 的 socket
+            // 然后再连接
             Some(src) => {
                 let socket = if src.is_ipv4() {
                     TcpSocket::new_v4()?

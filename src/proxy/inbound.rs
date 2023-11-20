@@ -197,6 +197,9 @@ impl Inbound {
                                 }
                             }
                             Hbone(req) => match hyper::upgrade::on(req).await {
+                                // TODO: 
+                                // 1. req 是一个什么？hyper::upgrade::on(req) 的作用是什么？这里的 upgraded 是什么东西？是一个 http2 的 stream 吗？ 
+                                // 2. Hbone 是什么？跟 raw tcp stream 的区别是什么？
                                 Ok(mut upgraded) => {
                                     if let Err(e) = super::copy_hbone(
                                         &mut upgraded,
