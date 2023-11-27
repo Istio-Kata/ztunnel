@@ -152,6 +152,7 @@ impl Inbound {
         extra_connection_metrics: Option<ConnectionOpen>,
     ) -> Result<(), std::io::Error> {
         let start = Instant::now();
+        // ztunnel -> pod
         let stream = super::freebind_connect(orig_src, addr).await;
         match stream {
             Err(err) => {
@@ -196,10 +197,14 @@ impl Inbound {
                                     }
                                 }
                             }
+                            // req1, req2, req3
                             Hbone(req) => match hyper::upgrade::on(req).await {
                                 // TODO: 
                                 // 1. req 是一个什么？hyper::upgrade::on(req) 的作用是什么？这里的 upgraded 是什么东西？是一个 http2 的 stream 吗？ 
                                 // 2. Hbone 是什么？跟 raw tcp stream 的区别是什么？
+                                
+                                // headers: ztunnel -> ht
+                                // ztunnel -> container (bind, listen, accept, streamfd)
                                 Ok(mut upgraded) => {
                                     if let Err(e) = super::copy_hbone(
                                         &mut upgraded,

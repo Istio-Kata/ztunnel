@@ -44,6 +44,13 @@ pub struct Outbound {
     listener: TcpListener,
 }
 
+// pod -> ztunnel
+// ztunnel(server): bind(127.0.0.1:1024), listen, accept
+// pod(client): connect(127.0.0.1:1024)
+
+// pod: connect(127.0.0.1:1024): vsock -> app(lib) -> ztunnel
+// ip -> socket
+
 impl Outbound {
     pub(super) async fn new(mut pi: ProxyInputs, drain: Watch) -> Result<Outbound, Error> {
         let listener: TcpListener = TcpListener::bind(pi.cfg.outbound_addr)
@@ -74,6 +81,10 @@ impl Outbound {
         let accept = async move {
             loop {
                 // Asynchronously wait for an inbound socket.
+                // tcp stream: pod -> ztunnel
+                // unix stream: pod --vsock--> unix stream --> ztunnel
+
+                // ztunnel as server, 
                 let socket = self.listener.accept().await;
                 let start_outbound_instant = Instant::now();
                 match socket {

@@ -207,7 +207,10 @@ pub async fn copy_hbone(
     transferred_bytes: BytesTransferred<'_>,
 ) -> Result<(), Error> {
     use tokio::io::AsyncWriteExt;
+    // read/write
+    // 
     let (mut ri, mut wi) = tokio::io::split(hyper_util::rt::TokioIo::new(upgraded));
+    // read/write 
     let (mut ro, mut wo) = stream.split();
 
     let (mut sent, mut received): (u64, u64) = (0, 0);
@@ -217,6 +220,7 @@ pub async fn copy_hbone(
     let client_to_server = async {
         let mut ri = tokio::io::BufReader::with_capacity(HBONE_BUFFER_SIZE, &mut ri);
         // 阻塞直到 EOF
+        // upgraded.read(): ztunnel
         let res = tokio::io::copy_buf(&mut ri, &mut wo).await;
         trace!(?res, "hbone -> tcp");
         received = res?;
